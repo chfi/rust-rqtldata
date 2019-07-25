@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::error::Error;
 
 #[derive(Deserialize, Debug)]
 pub struct CrossInfo {
@@ -29,13 +30,47 @@ pub struct Control {
     pub cross_info: CrossInfo,
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+#[derive(Debug)]
+pub struct Geno {
+    pub ids: Vec<String>,
+    pub genos: HashMap<String, Vec<String>>,
+}
+
+impl Geno {
+    pub fn parse_transposed_geno(path: &str) -> Result<Geno, Box<Error>> {
+        let mut rdr = csv::ReaderBuilder::new()
+            .comment(Some(b'#'))
+            .from_path(path)?;
+
+        let ids: Vec<String> = {
+            let headers = rdr.headers()?;
+            headers.into_iter().skip(1).map(String::from).collect()
+        };
+
+        let mut genos = HashMap::new();
+
+        rdr.records().for_each(|g| {
+            let geno = g.unwrap();
+            let k = geno.get(0).unwrap().to_string();
+            let v = geno.into_iter().skip(1).map(String::from).collect();
+            genos.insert(k, v);
+        });
+
+        Ok(Geno { ids, genos })
     }
 
-    #[test]
-    fn whoa() {}
+    /*
+    fn parse_geno(path: String) -> Result<Geno, Box<Error>> {
+        let mut rdr = csv::ReaderBuilder::new()
+            .comment(Some(b'#'))
+            .from_path(path)?;
+
+        let markers: Vec<String> = {
+            let headers = rdr.headers()?;
+            headers.into_iter().skip(1).map(String::from).collect()
+        };
+
+        Ok(Geno { ids, genos })
+    }
+    */
 }
