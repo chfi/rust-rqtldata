@@ -1,0 +1,10 @@
+[package]
+name = "rqtl"
+version = "0.1.0"
+authors = ["Christian Fischer <christian@chfi.se>"]
+edition = "2018"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+csv = "1.1.1"
