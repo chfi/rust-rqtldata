@@ -2,13 +2,25 @@ extern crate rqtl;
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     #[test]
     fn parses_control() {
         let bxd_json_str = include_str!("bxd.json");
         let parsed: rqtl::Control = serde_json::from_str(bxd_json_str).unwrap();
-        println!("{}", bxd_json_str);
-        println!("{:?}", parsed);
-        assert_eq!(1, 1);
+
+        assert_eq!(parsed.crosstype, String::from("risib"));
+
+        let genos: HashMap<String, i32> = vec![("B".to_string(), 1), ("D".to_string(), 2)]
+            .into_iter()
+            .collect();
+        assert_eq!(parsed.genotypes, genos);
+
+        let cross_info = rqtl::CrossInfo {
+            file: String::from("bxd_crossinfo.csv"),
+            data: vec![("BxD".to_string(), 0)].into_iter().collect(),
+        };
+        assert_eq!(parsed.cross_info, cross_info);
     }
 
     #[test]
