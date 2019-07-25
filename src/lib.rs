@@ -9,16 +9,45 @@ pub struct CrossInfo {
     pub data: HashMap<String, i32>,
 }
 
+// Might use this instead of String in the Files struct later
+#[derive(Deserialize, Debug)]
+pub enum File {
+    Single(String),
+    Multi(Vec<String>),
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Files {
+    pub geno: Option<String>,
+    pub founder_geno: Option<String>,
+    pub pheno: Option<String>,
+    pub covar: Option<String>,
+    pub phenocovar: Option<String>,
+    pub gmap: Option<String>,
+    pub pmap: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub enum Sex {
+    Covar {
+        covar: String,
+        #[serde(flatten)]
+        codes: HashMap<String, String>,
+    },
+    FromFile {
+        file: String,
+        #[serde(flatten)]
+        codes: HashMap<String, String>,
+    },
+}
+
 #[derive(Deserialize, Debug)]
 pub struct Control {
     pub description: String,
     pub crosstype: String,
-    pub geno: String,
-    pub pheno: String,
-    pub phenocovar: String,
-    pub gmap: String,
-    pub pmap: String,
-    pub sep: String,
+    #[serde(flatten)]
+    pub files: Files,
+    pub sep: char,
     #[serde(rename(deserialize = "na.strings"))]
     pub na_strings: Vec<String>,
     #[serde(rename(deserialize = "comment.char"))]
@@ -26,8 +55,9 @@ pub struct Control {
     pub alleles: Vec<char>,
     pub x_chr: String,
     pub genotypes: HashMap<String, i32>,
-    pub geno_transposed: bool,
+    pub geno_transposed: Option<bool>,
     pub cross_info: CrossInfo,
+    pub sex: Option<Sex>,
 }
 
 #[derive(Debug)]
