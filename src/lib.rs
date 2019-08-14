@@ -1,3 +1,7 @@
+#[macro_use(array)]
+extern crate ndarray;
+
+use ndarray::prelude::*;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::error::Error;
@@ -53,11 +57,19 @@ pub struct Control {
     #[serde(rename(deserialize = "comment.char"))]
     pub comment_char: String,
     pub alleles: Vec<char>,
-    pub x_chr: String,
-    pub genotypes: HashMap<String, i32>,
+    pub x_chr: Option<String>,
+    pub genotypes: HashMap<String, u8>,
     pub geno_transposed: Option<bool>,
+    pub founder_geno_transposed: Option<bool>,
     pub cross_info: CrossInfo,
     pub sex: Option<Sex>,
+}
+
+impl Control {
+    pub fn read_geno(&self, geno: &str) -> u8 {
+        let g = geno.to_string();
+        self.genotypes.get(&g).map(|x| x.clone()).unwrap_or(0)
+    }
 }
 
 #[derive(Debug)]
@@ -103,4 +115,62 @@ impl Geno {
         Ok(Geno { ids, genos })
     }
     */
+}
+
+#[derive(Debug)]
+pub struct Dataset<A> {
+    pub first_entry: String,
+    pub ids: Vec<String>,
+    pub row_ids: Vec<String>,
+    pub data: Array2<A>,
+}
+
+impl Dataset<u8> {
+    pub fn read_geno_csv(ctrl: &Control, path: &str) -> Result<Dataset<u8>, Box<Error>> {
+        let mut rdr = csv::ReaderBuilder::new()
+            .comment(Some(b'#'))
+            .from_path(path)?;
+
+        let mut first_entry;
+
+        let ids: Vec<String> = {
+            let headers = rdr.headers()?;
+            first_entry = headers.get(0).unwrap().to_string();
+
+            headers.into_iter().skip(1).map(String::from).collect()
+        };
+
+        let mut row_ids: Vec<String> = vec![];
+
+        let mut data_vec: Vec<u8> = vec![];
+
+        rdr.records().for_each(|g| {
+            let geno = g.unwrap();
+            let k = geno.get(0).unwrap().to_string();
+
+            row_ids.push(k);
+
+            let mut v: Vec<_> = geno
+                .into_iter()
+                .skip(1)
+                .map(|x| ctrl.read_geno(x))
+                .collect();
+
+            data_vec.append(&mut v);
+        });
+
+        let width = ids.len();
+        let height = row_ids.len();
+        println!("w: {}", width);
+        println!("h: {}", height);
+
+        let data = Array::from_shape_vec((width, height), data_vec)?;
+
+        Ok(Dataset {
+            first_entry,
+            ids,
+            row_ids,
+            data,
+        })
+    }
 }

@@ -11,7 +11,7 @@ mod tests {
 
         assert_eq!(parsed.crosstype, String::from("risib"));
 
-        let genos: HashMap<String, i32> = vec![("B".to_string(), 1), ("D".to_string(), 2)]
+        let genos: HashMap<String, u8> = vec![("B".to_string(), 1), ("D".to_string(), 2)]
             .into_iter()
             .collect();
         assert_eq!(parsed.genotypes, genos);
@@ -21,6 +21,8 @@ mod tests {
             data: vec![("BxD".to_string(), 0)].into_iter().collect(),
         };
         assert_eq!(parsed.cross_info, cross_info);
+
+        println!("{:?}", parsed);
     }
 
     #[test]
@@ -31,6 +33,20 @@ mod tests {
 
         assert_eq!(198, geno.ids.len());
         assert_eq!(7320, geno.genos.len());
+    }
+
+    #[test]
+    fn parses_ndarray() {
+        let bxd_json_str = include_str!("bxd.json");
+        let control: rqtl::Control = serde_json::from_str(bxd_json_str).unwrap();
+
+        let bxd_csv_path = "./tests/bxd_geno.csv";
+        let geno = rqtl::Dataset::read_geno_csv(&control, bxd_csv_path).unwrap();
+
+        // println!("{:?}", geno);
+        println!("shape: {:?}", geno.data.shape());
+
+        assert_eq!(geno.data.shape(), [198, 7320]);
     }
 
 }
