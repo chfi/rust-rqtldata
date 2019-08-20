@@ -1,4 +1,3 @@
-#[macro_use(array)]
 extern crate ndarray;
 
 use ndarray::prelude::*;
@@ -66,9 +65,16 @@ pub struct Control {
 }
 
 impl Control {
-    pub fn read_geno(&self, geno: &str) -> u8 {
+    pub fn parse_geno(&self, geno: &str) -> u8 {
         let g = geno.to_string();
         self.genotypes.get(&g).map(|x| x.clone()).unwrap_or(0)
+    }
+
+    pub fn parse_f32(&self, data: &str) -> f32 {
+        match self.na_strings.iter().find(|s| *s == data) {
+            Some(_) => 0.0,
+            None => data.parse::<f32>().unwrap_or(0.0),
+        }
     }
 }
 
@@ -134,8 +140,9 @@ pub struct Marker {
     pub pos: f32,
 }
 
+/// Used to represent both gmap and pmap data
 #[derive(Debug)]
-pub struct Gmap {
+pub struct MapData {
     pub chromosomes: Vec<(String, Array1<Marker>)>,
 }
 
@@ -147,9 +154,9 @@ fn get_chr_vec<'a>(v: &'a mut Vec<(String, Vec<Marker>)>, chr: &str) -> &'a mut 
     m
 }
 
-impl Gmap {
-    pub fn new() -> Gmap {
-        Gmap {
+impl MapData {
+    pub fn new() -> MapData {
+        MapData {
             chromosomes: vec![],
         }
     }
@@ -164,7 +171,7 @@ impl Gmap {
     /// Parse a dataset provided as an iterator over the lines of the
     /// dataset, parsed into a tuple, into one Array1<Marker> per
     /// chromosome, each stored as an element in a Vec
-    pub fn parse_csv(path: &str) -> Result<Gmap, Box<dyn Error>> {
+    pub fn read_csv(path: &str) -> Result<MapData, Box<dyn Error>> {
         let mut chromosomes_vec = vec![];
 
         let mut rdr = csv::ReaderBuilder::new()
@@ -197,7 +204,7 @@ impl Gmap {
             })
             .collect();
 
-        Ok(Gmap { chromosomes })
+        Ok(MapData { chromosomes })
     }
 }
 
@@ -228,7 +235,6 @@ impl<T> Dataset<T> {
         };
 
         let mut row_ids: Vec<String> = vec![];
-
         let mut data_vec: Vec<T> = vec![];
 
         rdr.records().for_each(|g| {
@@ -248,7 +254,6 @@ impl<T> Dataset<T> {
 
         let width = ids.len();
         let height = row_ids.len();
-
         let data = Array::from_shape_vec((width, height), data_vec)?;
 
         Ok(Dataset {
@@ -258,10 +263,17 @@ impl<T> Dataset<T> {
             data,
         })
     }
+
+    pub fn transpose(self) -> Self {
+        Dataset {
+            data: self.data.reversed_axes(),
+            ..self
+        }
+    }
 }
 
 impl Dataset<u8> {
     pub fn read_geno_csv(ctrl: &Control, path: &str) -> Result<Dataset<u8>, Box<dyn Error>> {
-        Dataset::read_csv(|g| Some(ctrl.read_geno(g)), path)
+        Dataset::read_csv(|g| Some(ctrl.parse_geno(g)), path)
     }
 }

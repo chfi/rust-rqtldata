@@ -51,7 +51,7 @@ mod tests {
     #[test]
     fn parses_gmap() {
         let bxd_gmap_csv = "./tests/bxd_gmap.csv";
-        let gmap = rqtl::Gmap::parse_csv(bxd_gmap_csv).expect("Could not parse gmap csv");
+        let gmap = rqtl::MapData::read_csv(bxd_gmap_csv).expect("Could not parse gmap csv");
 
         assert_eq!(gmap.chromosomes.len(), 20);
         let (chr1, ms) = gmap.chromosomes.first().unwrap();
