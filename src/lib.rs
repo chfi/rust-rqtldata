@@ -79,7 +79,7 @@ pub struct Geno {
 }
 
 impl Geno {
-    pub fn parse_transposed_geno(path: &str) -> Result<Geno, Box<Error>> {
+    pub fn parse_transposed_geno(path: &str) -> Result<Geno, Box<dyn Error>> {
         let mut rdr = csv::ReaderBuilder::new()
             .comment(Some(b'#'))
             .from_path(path)?;
@@ -164,19 +164,29 @@ impl Gmap {
     /// Parse a dataset provided as an iterator over the lines of the
     /// dataset, parsed into a tuple, into one Array1<Marker> per
     /// chromosome, each stored as an element in a Vec
-    pub fn parse_by_chr<'a, T>(t: T) -> Gmap
-    where
-        T: Iterator<Item = (&'a str, &'a str, f32)>,
-    {
+    pub fn parse_csv(path: &str) -> Result<Gmap, Box<dyn Error>> {
         let mut chromosomes_vec = vec![];
 
-        for (marker, chr, pos) in t {
+        let mut rdr = csv::ReaderBuilder::new()
+            .comment(Some(b'#'))
+            .from_path(path)?;
+
+        rdr.records().for_each(|r| {
+            let row = r.unwrap();
+
+            let marker = row.get(0).expect("Couldn't parse marker");
+            let chr = row.get(1).expect("Couldn't parse chr");
+            let pos = row
+                .get(2)
+                .and_then(|p| p.parse::<f32>().ok())
+                .expect("Couldn't parse pos");
+
             let chr_vec = get_chr_vec(&mut chromosomes_vec, chr);
             chr_vec.push(Marker {
                 name: marker.to_string(),
                 pos,
             })
-        }
+        });
 
         let chromosomes = chromosomes_vec
             .into_iter()
@@ -187,7 +197,7 @@ impl Gmap {
             })
             .collect();
 
-        Gmap { chromosomes }
+        Ok(Gmap { chromosomes })
     }
 }
 
@@ -200,12 +210,12 @@ pub struct Dataset<A> {
 }
 
 impl Dataset<u8> {
-    pub fn read_geno_csv(ctrl: &Control, path: &str) -> Result<Dataset<u8>, Box<Error>> {
+    pub fn read_geno_csv(ctrl: &Control, path: &str) -> Result<Dataset<u8>, Box<dyn Error>> {
         let mut rdr = csv::ReaderBuilder::new()
             .comment(Some(b'#'))
             .from_path(path)?;
 
-        let mut first_entry;
+        let first_entry;
 
         let ids: Vec<String> = {
             let headers = rdr.headers()?;

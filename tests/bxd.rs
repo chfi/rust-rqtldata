@@ -51,23 +51,13 @@ mod tests {
 
     #[test]
     fn parses_gmap() {
-        let iter = vec![
-            ("1a", "1", 1.0),
-            ("1b", "1", 1.4),
-            ("1c", "1", 1.7),
-            ("1d", "1", 1.7),
-            ("1e", "1", 1.9),
-            ("2a", "2", 1.0),
-            ("2b", "2", 1.5),
-            ("2c", "2", 2.7),
-        ]
-        .into_iter();
+        let bxd_gmap_csv = "./tests/bxd_gmap.csv";
+        let gmap = rqtl::Gmap::parse_csv(bxd_gmap_csv).expect("Could not parse gmap csv");
 
-        let gmap = rqtl::Gmap::parse_by_chr(iter);
-
-        println!("gmap: {:?}", gmap);
-
-        assert_eq!(1, 1);
+        assert_eq!(gmap.chromosomes.len(), 20);
+        let (chr1, ms) = gmap.chromosomes.first().unwrap();
+        assert_eq!(chr1, "1");
+        assert_eq!(ms.len(), 636);
     }
 
 }
