@@ -201,7 +201,7 @@ impl Gmap {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Dataset<A> {
     pub first_entry: String,
     pub ids: Vec<String>,
@@ -209,8 +209,11 @@ pub struct Dataset<A> {
     pub data: Array2<A>,
 }
 
-impl Dataset<u8> {
-    pub fn read_geno_csv(ctrl: &Control, path: &str) -> Result<Dataset<u8>, Box<dyn Error>> {
+impl<T> Dataset<T> {
+    pub fn read_csv<F>(parser: F, path: &str) -> Result<Dataset<T>, Box<dyn Error>>
+    where
+        F: Fn(&str) -> Option<T>,
+    {
         let mut rdr = csv::ReaderBuilder::new()
             .comment(Some(b'#'))
             .from_path(path)?;
@@ -226,7 +229,7 @@ impl Dataset<u8> {
 
         let mut row_ids: Vec<String> = vec![];
 
-        let mut data_vec: Vec<u8> = vec![];
+        let mut data_vec: Vec<T> = vec![];
 
         rdr.records().for_each(|g| {
             let geno = g.unwrap();
@@ -237,7 +240,7 @@ impl Dataset<u8> {
             let mut v: Vec<_> = geno
                 .into_iter()
                 .skip(1)
-                .map(|x| ctrl.read_geno(x))
+                .map(|x| parser(x).expect("Error parsing dataset"))
                 .collect();
 
             data_vec.append(&mut v);
@@ -245,8 +248,6 @@ impl Dataset<u8> {
 
         let width = ids.len();
         let height = row_ids.len();
-        println!("w: {}", width);
-        println!("h: {}", height);
 
         let data = Array::from_shape_vec((width, height), data_vec)?;
 
@@ -256,5 +257,11 @@ impl Dataset<u8> {
             row_ids,
             data,
         })
+    }
+}
+
+impl Dataset<u8> {
+    pub fn read_geno_csv(ctrl: &Control, path: &str) -> Result<Dataset<u8>, Box<dyn Error>> {
+        Dataset::read_csv(|g| Some(ctrl.read_geno(g)), path)
     }
 }

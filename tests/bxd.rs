@@ -43,7 +43,6 @@ mod tests {
         let bxd_csv_path = "./tests/bxd_geno.csv";
         let geno = rqtl::Dataset::read_geno_csv(&control, bxd_csv_path).unwrap();
 
-        // println!("{:?}", geno);
         println!("shape: {:?}", geno.data.shape());
 
         assert_eq!(geno.data.shape(), [198, 7320]);
