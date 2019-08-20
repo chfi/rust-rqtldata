@@ -2,7 +2,7 @@ extern crate rqtl;
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     #[test]
     fn parses_control() {
@@ -11,7 +11,7 @@ mod tests {
 
         assert_eq!(parsed.crosstype, String::from("risib"));
 
-        let genos: HashMap<String, u8> = vec![("B".to_string(), 1), ("D".to_string(), 2)]
+        let genos: BTreeMap<String, u8> = vec![("B".to_string(), 1), ("D".to_string(), 2)]
             .into_iter()
             .collect();
         assert_eq!(parsed.genotypes, genos);
@@ -47,6 +47,27 @@ mod tests {
         println!("shape: {:?}", geno.data.shape());
 
         assert_eq!(geno.data.shape(), [198, 7320]);
+    }
+
+    #[test]
+    fn parses_gmap() {
+        let iter = vec![
+            ("1a", "1", 1.0),
+            ("1b", "1", 1.4),
+            ("1c", "1", 1.7),
+            ("1d", "1", 1.7),
+            ("1e", "1", 1.9),
+            ("2a", "2", 1.0),
+            ("2b", "2", 1.5),
+            ("2c", "2", 2.7),
+        ]
+        .into_iter();
+
+        let gmap = rqtl::Gmap::parse_by_chr(iter);
+
+        println!("gmap: {:?}", gmap);
+
+        assert_eq!(1, 1);
     }
 
 }

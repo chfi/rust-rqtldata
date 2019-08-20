@@ -3,14 +3,14 @@ extern crate ndarray;
 
 use ndarray::prelude::*;
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::error::Error;
 
 #[derive(Deserialize, Debug, PartialEq)]
 pub struct CrossInfo {
     pub file: String,
     #[serde(flatten)]
-    pub data: HashMap<String, i32>,
+    pub data: BTreeMap<String, i32>,
 }
 
 // Might use this instead of String in the Files struct later
@@ -36,12 +36,12 @@ pub enum Sex {
     Covar {
         covar: String,
         #[serde(flatten)]
-        codes: HashMap<String, String>,
+        codes: BTreeMap<String, String>,
     },
     FromFile {
         file: String,
         #[serde(flatten)]
-        codes: HashMap<String, String>,
+        codes: BTreeMap<String, String>,
     },
 }
 
@@ -58,7 +58,7 @@ pub struct Control {
     pub comment_char: String,
     pub alleles: Vec<char>,
     pub x_chr: Option<String>,
-    pub genotypes: HashMap<String, u8>,
+    pub genotypes: BTreeMap<String, u8>,
     pub geno_transposed: Option<bool>,
     pub founder_geno_transposed: Option<bool>,
     pub cross_info: CrossInfo,
@@ -75,7 +75,7 @@ impl Control {
 #[derive(Debug)]
 pub struct Geno {
     pub ids: Vec<String>,
-    pub genos: HashMap<String, Vec<String>>,
+    pub genos: BTreeMap<String, Vec<String>>,
 }
 
 impl Geno {
@@ -89,7 +89,7 @@ impl Geno {
             headers.into_iter().skip(1).map(String::from).collect()
         };
 
-        let mut genos = HashMap::new();
+        let mut genos = BTreeMap::new();
 
         rdr.records().for_each(|g| {
             let geno = g.unwrap();
@@ -115,6 +115,80 @@ impl Geno {
         Ok(Geno { ids, genos })
     }
     */
+}
+
+#[derive(Debug)]
+pub struct Chromosome {
+    pub markers: Vec<(String, f32)>,
+}
+
+impl Chromosome {
+    pub fn new() -> Chromosome {
+        Chromosome { markers: vec![] }
+    }
+}
+
+#[derive(Debug)]
+pub struct Marker {
+    pub name: String,
+    pub pos: f32,
+}
+
+#[derive(Debug)]
+pub struct Gmap {
+    pub chromosomes: Vec<(String, Array1<Marker>)>,
+}
+
+fn get_chr_vec<'a>(v: &'a mut Vec<(String, Vec<Marker>)>, chr: &str) -> &'a mut Vec<Marker> {
+    if let None = v.iter().find(|(c, _)| c == chr) {
+        v.push((chr.to_string(), vec![]));
+    }
+    let (_, m) = v.iter_mut().find(|(c, _)| c == chr).unwrap();
+    m
+}
+
+impl Gmap {
+    pub fn new() -> Gmap {
+        Gmap {
+            chromosomes: vec![],
+        }
+    }
+
+    pub fn get_chr(&self, chr: &str) -> Option<&[Marker]> {
+        self.chromosomes
+            .iter()
+            .find(|&(c, _)| c == chr)
+            .and_then(|(_, m)| m.as_slice())
+    }
+
+    /// Parse a dataset provided as an iterator over the lines of the
+    /// dataset, parsed into a tuple, into one Array1<Marker> per
+    /// chromosome, each stored as an element in a Vec
+    pub fn parse_by_chr<'a, T>(t: T) -> Gmap
+    where
+        T: Iterator<Item = (&'a str, &'a str, f32)>,
+    {
+        let mut chromosomes_vec = vec![];
+
+        for (marker, chr, pos) in t {
+            let chr_vec = get_chr_vec(&mut chromosomes_vec, chr);
+            chr_vec.push(Marker {
+                name: marker.to_string(),
+                pos,
+            })
+        }
+
+        let chromosomes = chromosomes_vec
+            .into_iter()
+            .map(|(c, m)| {
+                let ma = Array::from_iter(m.into_iter());
+
+                (c, ma)
+            })
+            .collect();
+
+        Gmap { chromosomes }
+    }
 }
 
 #[derive(Debug)]
