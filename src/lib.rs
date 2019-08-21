@@ -66,15 +66,18 @@ pub struct Control {
 
 impl Control {
     pub fn parse_geno(&self, geno: &str) -> u8 {
-        let g = geno.to_string();
-        self.genotypes.get(&g).map(|x| x.clone()).unwrap_or(0)
+        self.genotypes.get(geno).copied().unwrap_or(0)
     }
 
     pub fn parse_f32(&self, data: &str) -> f32 {
-        match self.na_strings.iter().find(|s| *s == data) {
-            Some(_) => 0.0,
-            None => data.parse::<f32>().unwrap_or(0.0),
-        }
+        self.na_strings
+            .iter()
+            .find(|&s| s == data)
+            .map_or_else(|| data.parse::<f32>().unwrap_or(0.0), |_| 0.0)
+    }
+
+    pub fn parse_cross_info(&self, x: &str) -> Option<i32> {
+        self.cross_info.data.get(x).copied()
     }
 }
 
@@ -106,21 +109,6 @@ impl Geno {
 
         Ok(Geno { ids, genos })
     }
-
-    /*
-    fn parse_geno(path: String) -> Result<Geno, Box<Error>> {
-        let mut rdr = csv::ReaderBuilder::new()
-            .comment(Some(b'#'))
-            .from_path(path)?;
-
-        let markers: Vec<String> = {
-            let headers = rdr.headers()?;
-            headers.into_iter().skip(1).map(String::from).collect()
-        };
-
-        Ok(Geno { ids, genos })
-    }
-    */
 }
 
 #[derive(Debug)]
@@ -154,6 +142,13 @@ fn get_chr_vec<'a>(v: &'a mut Vec<(String, Vec<Marker>)>, chr: &str) -> &'a mut 
     m
 }
 
+#[derive(Deserialize)]
+struct MapRow<'a> {
+    marker: &'a str,
+    chr: &'a str,
+    pos: f32,
+}
+
 impl MapData {
     pub fn new() -> MapData {
         MapData {
@@ -178,30 +173,22 @@ impl MapData {
             .comment(Some(b'#'))
             .from_path(path)?;
 
+        let hdrs = rdr.headers().ok().cloned();
+
         rdr.records().for_each(|r| {
             let row = r.unwrap();
+            let maprow: MapRow = row.deserialize(hdrs.as_ref()).unwrap();
 
-            let marker = row.get(0).expect("Couldn't parse marker");
-            let chr = row.get(1).expect("Couldn't parse chr");
-            let pos = row
-                .get(2)
-                .and_then(|p| p.parse::<f32>().ok())
-                .expect("Couldn't parse pos");
-
-            let chr_vec = get_chr_vec(&mut chromosomes_vec, chr);
+            let chr_vec = get_chr_vec(&mut chromosomes_vec, maprow.chr);
             chr_vec.push(Marker {
-                name: marker.to_string(),
-                pos,
+                name: maprow.marker.to_string(),
+                pos: maprow.pos,
             })
         });
 
         let chromosomes = chromosomes_vec
             .into_iter()
-            .map(|(c, m)| {
-                let ma = Array::from_iter(m.into_iter());
-
-                (c, ma)
-            })
+            .map(|(c, m)| (c, Array::from_iter(m.into_iter())))
             .collect();
 
         Ok(MapData { chromosomes })
